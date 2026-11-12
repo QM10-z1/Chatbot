@@ -3,16 +3,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app import store
 from app.llm import call_model, call_model_stream
+from app.schemas.chat import ChatRequest, ChatResponse
+
 
 router = APIRouter(tags=["Chat"])
-
-class ChatRequest(BaseModel):
-    session_id: str
-    message: str
-
-class ChatResponse(BaseModel):
-    session_id: str
-    reply: str
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):

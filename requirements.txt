@@ -1,7 +1,0 @@
-openai
-pydantic-settings
-python-dotenv
-pytest
-fastapi
-uvicorn
-httpx

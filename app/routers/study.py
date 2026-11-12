@@ -1,11 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.llm import call_model
+from app.schemas.study import StudyRequest
 
 router = APIRouter(tags=["Study"])
 
-class StudyRequest(BaseModel):
-    text: str
 
 STUDY_SYSTEM_PROMPT = (
     "你是一位专业的英语老师。请指出用户提供的英文中的语法或用词问题，"
