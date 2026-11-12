@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from app.llm import call_model
 from app.schemas.study import StudyRequest
 

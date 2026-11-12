@@ -6,7 +6,7 @@
 
 1. 安装依赖：
    ```bash
-   pip install -r requirements.txt
+   uv sync   
    ```
 
 2. 配置环境变量：
@@ -21,7 +21,7 @@
 
 3. 启动服务：
    ```bash
-   python -m uvicorn app.main:app --reload
+   uv run uvicorn app.main:app --reload
    ```
 
 4. **查看接口文档**：打开浏览器访问 [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)，可以直接在页面上调试所有接口。
@@ -77,5 +77,5 @@ curl -X POST http://127.0.0.1:8000/study/correct \
 
 运行测试：
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from app import store
 from app.llm import call_model, call_model_stream
 from app.schemas.chat import ChatRequest, ChatResponse
