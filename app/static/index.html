@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>DeepSeek Chatbot</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; background: #f0f2f5; }
+        #chat-box { background: white; border: 1px solid #ddd; border-radius: 8px; height: 400px; overflow-y: scroll; padding: 1rem; margin-bottom: 1rem; }
+        .message { margin-bottom: 0.8rem; line-height: 1.4; }
+        .user { color: #1a73e8; font-weight: 600; }
+        .assistant { color: #188038; font-weight: 600; }
+        .controls { display: flex; gap: 10px; margin-bottom: 1rem; }
+        .controls button { padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: white; }
+        .controls button:hover { background: #e8f0fe; }
+        .input-area { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 0.6rem; border-radius: 4px; border: 1px solid #ccc; outline: none; }
+        input[type="text"]:focus { border-color: #1a73e8; }
+        .input-area button { padding: 0.6rem 1.2rem; border-radius: 4px; border: none; background: #1a73e8; color: white; cursor: pointer; }
+        .input-area button:hover { background: #1557b0; }
+    </style>
+</head>
+<body>
+    <h2>DeepSeek 聊天机器人</h2>
+    
+    <div class="controls">
+        <!-- 【新增】用一个下拉框来展示和切换历史会话 -->
+        <select id="session-select" onchange="switchSession(this.value)" style="padding: 0.4rem; border-radius: 4px;">
+            <option value="">-- 选择历史会话 --</option>
+        </select>
+        <button onclick="createNewSession()">新建会话</button>
+        <button onclick="clearCurrentSession()">清空当前会话</button>
+    </div>
+
+    <div id="chat-box"></div>
+
+    <div class="input-area">
+        <input type="text" id="msg-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()">发送</button>
+    </div>
+
+    <script>
+        let currentSessionId = "default";
+
+        // 初始化：加载历史列表
+        window.onload = () => {
+            fetchSessions();
+            // 如果没有历史，自动建个新的
+            if (!currentSessionId) createNewSession();
+        };
+
+        // 1. 获取所有历史会话，填充到下拉框
+        async function fetchSessions() {
+            const res = await fetch('/sessions');
+            const data = await res.json();
+            const select = document.getElementById('session-select');
+            
+            // 保留第一个默认提示项，清空后面的
+            select.innerHTML = '<option value="">-- 选择历史会话 --</option>';
+            
+            if (data.sessions) {
+                data.sessions.forEach(id => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.innerText = id;
+                    // 如果当前ID匹配，默认选中
+                    if (id === currentSessionId) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        // 2. 切换会话
+        async function switchSession(id) {
+            if (!id) return;
+            currentSessionId = id;
+            await loadHistory();
+        }
+
+        // 3. 新建会话
+        async function createNewSession() {
+            currentSessionId = "user_" + Date.now();
+            // 清空下拉框的选中状态
+            document.getElementById('session-select').value = "";
+            document.getElementById('chat-box').innerHTML = '';
+            appendMessage('assistant', '新会话已创建，ID: ' + currentSessionId);
+            // 刷新一下列表
+            fetchSessions();
+        }
+
+        // 4. 清空当前会话
+        async function clearCurrentSession() {
+            if (!confirm('确定要清空当前会话吗？')) return;
+            await fetch(`/sessions/${currentSessionId}`, { method: 'DELETE' });
+            document.getElementById('chat-box').innerHTML = '';
+            // 清空后，如果列表里还有别的，就自动切过去
+            fetchSessions().then(() => {
+                const select = document.getElementById('session-select');
+                if (select.options.length > 1) {
+                    switchSession(select.options[1].value);
+                } else {
+                    createNewSession();
+                }
+            });
+        }
+
+        // 5. 加载当前会话的历史
+        async function loadHistory() {
+            const res = await fetch(`/sessions/${currentSessionId}/messages`);
+            const box = document.getElementById('chat-box');
+            box.innerHTML = '';
+            
+            if (res.status === 404) return;
+            
+            const data = await res.json();
+            if (data.messages.length === 0) {
+                box.innerHTML = '<p>空会话，开始聊天吧。</p>';
+            } else {
+                data.messages.forEach(m => appendMessage(m.role, m.content));
+            }
+        }
+
+        // 6. 渲染单条消息
+        function appendMessage(role, content) {
+            const box = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerText = `${role === 'user' ? '你' : 'AI'}: ${content}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // 7. 发送消息
+                // 7. 发送消息 (流式输出版)
+        async function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const message = input.value.trim();
+            if (!message) return;
+            input.value = '';
+            
+            // 渲染用户的提问
+            appendMessage('user', message);
+
+            // 预先创建一个 AI 消息的 DOM 元素，用来装流式返回的文字
+            const box = document.getElementById('chat-box');
+            const aiDiv = document.createElement('div');
+            aiDiv.className = `message assistant`;
+            aiDiv.innerText = `AI: `;
+            box.appendChild(aiDiv);
+            box.scrollTop = box.scrollHeight;
+
+            try {
+                // 调用流式接口
+                const res = await fetch('/chat/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: currentSessionId, message })
+                });
+
+                if (!res.ok) {
+                    aiDiv.innerText += ` [请求出错: ${res.status}]`;
+                    return;
+                }
+
+                // 获取读取流的 reader
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let fullText = "";
+
+                // 循环读取流
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    // 解码并拼接到页面上
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+                    aiDiv.innerText = `AI: ` + fullText;
+                    
+                    // 保持滚动条在最底部
+                    box.scrollTop = box.scrollHeight;
+                }
+
+                // 流式结束后，刷新一下下拉列表
+                fetchSessions();
+
+            } catch (err) {
+                aiDiv.innerText += ` [网络错误]`;
+            }
+        }
+    </script>
+</body>
+</html>
