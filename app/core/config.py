@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     model: str = "deepseek-chat"
     temperature: float = Field(0.7, ge=0, le=2)
 
+    db_url: str = Field("sqlite:///./chat.db", description="数据库连接字符串")
 
 @lru_cache
 def get_settings() -> Settings:

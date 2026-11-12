@@ -1,10 +1,15 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
+from app import store
 from app.routers import chat, sessions, study
 
-app = FastAPI(title="Chatbot API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    store.init_db()
+    yield
 
-# 把拆分出去的模块挂载回主 app
+app = FastAPI(title="Chatbot API", lifespan=lifespan)
+
 app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(study.router)
