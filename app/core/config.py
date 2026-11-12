@@ -1,15 +1,26 @@
 import sys
 from functools import lru_cache
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+
 from pydantic import Field, SecretStr, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 动态计算项目根目录，确保无论在哪运行都能找到 .env
+BASE_DIR = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="CHATBOT_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env",  # 修改点：使用绝对路径
+        env_prefix="CHATBOT_", 
+        extra="ignore"
+    )
 
     api_key: SecretStr = Field(...)
     base_url: str = "https://api.deepseek.com"
     model: str = "deepseek-chat"
     temperature: float = Field(0.7, ge=0, le=2)
+
 
 @lru_cache
 def get_settings() -> Settings:

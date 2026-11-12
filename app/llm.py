@@ -1,7 +1,7 @@
 """模型调用封装。测试时可 mock 本模块的 call_model / call_model_stream。"""
 
 from typing import Iterable
-from config import get_settings
+from app.core.config import get_settings
 
 
 def _build_client():
