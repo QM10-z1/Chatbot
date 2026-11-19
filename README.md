@@ -101,3 +101,30 @@ erDiagram
     }
     SESSIONS ||--o{ MESSAGES : "包含"
 ```
+
+
+## ORM 与 SQL 的对应关系
+
+本项目使用 SQLAlchemy 2.x 的 ORM 进行数据库操作。例如，对于历史消息的关键词查询：
+
+**ORM 查询写法：**
+```python
+stmt = (
+    select(Message)
+    .where(Message.session_id == session_id)
+    .where(Message.content.contains(keyword))
+    .order_by(Message.id.asc())
+)
+results = db.execute(stmt).scalars().all()
+```
+
+**等价的 SQL 语句：**
+```sql
+SELECT * FROM messages 
+WHERE session_id = 'u1' 
+  AND content LIKE '%苹果%' 
+ORDER BY id ASC;
+```
+
+**两种写法的关系：**
+SQLAlchemy ORM 将数据库表映射成了 Python 类，上述 ORM 查询最终会在底层被编译并执行等同于后者的 SQL 语句。使用 ORM 能提供类型安全、防 SQL 注入，且在切换数据库时无需重写语句。
