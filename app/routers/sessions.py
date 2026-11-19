@@ -8,8 +8,12 @@ def get_sessions():
     return {"sessions": store.list_sessions()}
 
 @router.get("/sessions/{session_id}/messages")
-def get_session_messages(session_id: str):
-    messages = store.get_messages(session_id)
+def get_session_messages(session_id: str, keyword: str | None = None):
+    if keyword:
+        messages = store.search_messages(session_id, keyword)
+    else:
+        messages = store.get_messages(session_id)
+        
     if messages is None:
         raise HTTPException(status_code=404, detail="会话不存在")
     return {"session_id": session_id, "messages": messages}

@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker, Session as OrmSession
+from sqlalchemy.orm import sessionmaker
 from app.core.config import get_settings
 from app.models import Base, Session, Message
 
@@ -90,3 +90,18 @@ def clear_all():
         db.query(Message).delete()
         db.query(Session).delete()
         db.commit()
+
+def search_messages(session_id: str, keyword: str) -> list[dict] | None:
+    with get_db() as db:
+        session_obj = db.get(Session, session_id)
+        if not session_obj:
+            return None
+        
+        stmt = (
+            select(Message)
+            .where(Message.session_id == session_id)
+            .where(Message.content.contains(keyword))
+            .order_by(Message.id.asc())
+        )
+        results = db.execute(stmt).scalars().all()
+        return [{"role": m.role, "content": m.content} for m in results]
