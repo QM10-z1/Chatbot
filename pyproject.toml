@@ -11,6 +11,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
+    "sqlalchemy>=2.0.58",
 ]
 
 [dependency-groups]
