@@ -12,20 +12,15 @@ def chat(req: ChatRequest):
     if not req.message or req.message.strip() == "":
         raise HTTPException(status_code=400, detail="message 不能为空")
     
-    # 1. 获取历史
+    # 1. 获取历史（不含本次用户消息）
     history = store.get_or_create_session(req.session_id)
     
-    # 2. 把用户消息存进数据库！(这是你漏掉的最关键的一句)
-    store.append_message(req.session_id, "user", req.message)
+    # 2. 构建发给模型的消息列表
+    messages_for_model = history + [{"role": "user", "content": req.message}]
+    reply = call_model(messages_for_model)
     
-    # 3. 把用户消息加到内存 list 里，发给模型
-    history.append({"role": "user", "content": req.message})
-    
-    # 4. 调用模型
-    reply = call_model(history)
-    
-    # 5. 把模型的回复存进数据库
-    store.append_message(req.session_id, "assistant", reply)
+    # 3. 事务：同时写入用户消息和AI回复
+    store.append_chat_turn(req.session_id, req.message, reply)
     
     return ChatResponse(session_id=req.session_id, reply=reply)
 
@@ -35,19 +30,14 @@ def chat_stream(req: ChatRequest):
         raise HTTPException(status_code=400, detail="message 不能为空")
     
     history = store.get_or_create_session(req.session_id)
-    
-    # 【新增这一行】先把用户的提问存进数据库
-    store.append_message(req.session_id, "user", req.message)
-    
-    # 把用户提问加到内存里发给模型
-    history.append({"role": "user", "content": req.message})
+    messages_for_model = history + [{"role": "user", "content": req.message}]
 
     def generator():
         full_reply = ""
-        for chunk in call_model_stream(history):
+        for chunk in call_model_stream(messages_for_model):
             full_reply += chunk
             yield chunk
-        # 流式结束后，存机器人的回复
-        store.append_message(req.session_id, "assistant", full_reply)
+        # 流式结束后，利用事务一次性存入
+        store.append_chat_turn(req.session_id, req.message, full_reply)
 
     return StreamingResponse(generator(), media_type="text/plain")
